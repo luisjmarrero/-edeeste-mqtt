@@ -1,0 +1,4 @@
+# HAR files often contain authenticated session cookies.
+*.har
+__pycache__/
+*.py[cod]

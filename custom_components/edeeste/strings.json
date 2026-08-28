@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect EDEEste",
+        "description": "{instructions}",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "discovery_prefix": "MQTT Discovery prefix"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not retrieve consumption data. Check your email and password."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update EDEEste credentials",
+        "description": "Update the email and password for your EDEEste account.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "discovery_prefix": "MQTT Discovery prefix"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not retrieve consumption data. Check your email and password."
+    }
+  }
+}
