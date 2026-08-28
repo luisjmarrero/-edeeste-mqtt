@@ -1,5 +1,7 @@
 # EDEEste MQTT for Home Assistant
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+
 HACS custom integration that reads electricity consumption from EDEEste Oficina Virtual and publishes it to your Home Assistant MQTT broker. It publishes retained MQTT Discovery configuration and states for current, projected, and previous monthly consumption (kWh), plus consumption days. Data refreshes hourly.
 
 > **Disclaimer:** This project was written with assistance from artificial intelligence. Review the code and test it in your environment before relying on it for production use.
