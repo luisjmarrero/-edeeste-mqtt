@@ -7,28 +7,32 @@
         "data": {
           "email": "Email",
           "password": "Password",
-          "discovery_prefix": "MQTT Discovery prefix"
+          "discovery_prefix": "MQTT Discovery prefix",
+          "update_times": "Daily update times (AST)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not retrieve consumption data. Check your email and password."
+      "cannot_connect": "Could not retrieve consumption data. Check your email and password.",
+      "invalid_update_times": "Enter one or more 24-hour times in HH:MM format, separated by commas."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Update EDEEste credentials",
-        "description": "Update the email and password for your EDEEste account.",
+        "description": "Update credentials, MQTT settings, and daily AST update times. Enter one or more 24-hour times separated by commas (for example, 10:00 or 10:00, 18:00).",
         "data": {
           "email": "Email",
           "password": "Password",
-          "discovery_prefix": "MQTT Discovery prefix"
+          "discovery_prefix": "MQTT Discovery prefix",
+          "update_times": "Daily update times (AST)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not retrieve consumption data. Check your email and password."
+      "cannot_connect": "Could not retrieve consumption data. Check your email and password.",
+      "invalid_update_times": "Enter one or more 24-hour times in HH:MM format, separated by commas."
     }
   }
 }

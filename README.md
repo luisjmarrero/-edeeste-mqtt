@@ -2,11 +2,13 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 
-HACS custom integration that reads electricity consumption from EDEEste Oficina Virtual and publishes it to your Home Assistant MQTT broker. It publishes retained MQTT Discovery configuration and states for current, projected, and previous monthly consumption (kWh), plus consumption days. Data refreshes hourly.
+HACS custom integration that reads electricity consumption from EDEEste Oficina Virtual and publishes it to your Home Assistant MQTT broker. It publishes retained MQTT Discovery configuration and states for current, projected, and previous monthly consumption (kWh), plus consumption days. By default, data refreshes once daily at 10:00 AM AST.
 
 > **Disclaimer:** This project was written with assistance from artificial intelligence. Review the code and test it in your environment before relying on it for production use.
 
 > **EDEEste disclaimer:** This is an independent, unofficial project and is not affiliated with, endorsed by, or supported by EDEEste. You are responsible for ensuring that your use complies with EDEEste's applicable terms and policies. Do not use it to circumvent access controls or access accounts other than your own.
+
+> *Note*: Yes, I know I have a typo in the repo name with a `-` in front, but I already have this installed in my HA instance and I'm not changing it :)
 
 ## Install
 
@@ -15,9 +17,9 @@ HACS custom integration that reads electricity consumption from EDEEste Oficina 
 3. Restart Home Assistant.
 4. Configure the [MQTT integration](https://www.home-assistant.io/integrations/mqtt/) with your broker; MQTT Discovery must be enabled (it is enabled by default).
 5. In Home Assistant, add **EDEEste** under **Settings → Devices & services**.
-6. Enter the email and password for your [Oficina Virtual EDEEste](https://oficinavirtual.edeeste.com.do/) account and select your discovery prefix (normally `homeassistant`).
+6. Enter the email and password for your [Oficina Virtual EDEEste](https://oficinavirtual.edeeste.com.do/) account, select your discovery prefix (normally `homeassistant`), and choose the daily update time(s). The default is `10:00` AST. To pull more than once a day, enter comma-separated 24-hour times such as `10:00, 18:00`.
 
-The integration logs in at every Home Assistant restart, holds its own EDEEste session, and logs in again automatically when that session expires. Your account credentials are stored in Home Assistant's configuration entry; use the integration's **Configure** menu to change them.
+The integration retrieves data when Home Assistant starts, then follows the configured daily AST schedule. It holds its own EDEEste session and logs in again automatically when that session expires. Your account credentials and update schedule are stored in Home Assistant's configuration entry; use the integration's **Configure** menu to change them.
 
 ## MQTT topics
 

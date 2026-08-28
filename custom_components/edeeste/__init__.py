@@ -11,7 +11,9 @@ from .const import (
     CONF_DISCOVERY_PREFIX,
     CONF_EMAIL,
     CONF_PASSWORD,
+    CONF_UPDATE_TIMES,
     DEFAULT_DISCOVERY_PREFIX,
+    DEFAULT_UPDATE_TIMES,
     DOMAIN,
 )
 from .coordinator import EdeesteDataUpdateCoordinator
@@ -29,6 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EdeesteConfigEntry) -> b
         client,
         entry.entry_id,
         entry.options.get(CONF_DISCOVERY_PREFIX, DEFAULT_DISCOVERY_PREFIX),
+        entry.options.get(CONF_UPDATE_TIMES, DEFAULT_UPDATE_TIMES),
     )
 
     try:
@@ -42,6 +45,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: EdeesteConfigEntry) -> b
 
     entry.runtime_data = coordinator
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    entry.async_on_unload(coordinator.async_stop_schedule)
+    coordinator.async_start_schedule()
     return True
 
 

@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta
+from typing import Callable
+from zoneinfo import ZoneInfo
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import (
     ConsumptionData,
@@ -15,7 +20,7 @@ from .api import (
     EdeesteApiError,
     EdeesteAuthenticationError,
 )
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, NAME
+from .const import DOMAIN, NAME, UPDATE_TIME_ZONE, parse_update_times
 
 
 class EdeesteDataUpdateCoordinator(DataUpdateCoordinator[ConsumptionData]):
@@ -27,16 +32,51 @@ class EdeesteDataUpdateCoordinator(DataUpdateCoordinator[ConsumptionData]):
         client: EdeesteApiClient,
         entry_id: str,
         discovery_prefix: str,
+        update_times: str,
     ) -> None:
         super().__init__(
             hass,
             logger=logging.getLogger(__name__),
             name=DOMAIN,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=None,
         )
         self.client = client
         self._device_id = f"edeeste_{entry_id}"
         self._discovery_prefix = discovery_prefix.strip("/")
+        self._update_times = parse_update_times(update_times)
+        self._time_zone = ZoneInfo(UPDATE_TIME_ZONE)
+        self._cancel_scheduled_refresh: Callable[[], None] | None = None
+
+    def async_start_schedule(self) -> None:
+        """Start the daily refresh schedule after the initial data load."""
+        self._async_schedule_next_refresh()
+
+    def async_stop_schedule(self) -> None:
+        """Cancel the next refresh when the config entry is unloaded."""
+        if self._cancel_scheduled_refresh is not None:
+            self._cancel_scheduled_refresh()
+            self._cancel_scheduled_refresh = None
+
+    def _async_schedule_next_refresh(self) -> None:
+        """Schedule the nearest configured update time in AST."""
+        now = dt_util.now(self._time_zone)
+        candidates = [
+            datetime.combine(now.date(), update_time, tzinfo=self._time_zone)
+            for update_time in self._update_times
+        ]
+        next_refresh = next((item for item in candidates if item > now), None)
+        if next_refresh is None:
+            next_refresh = candidates[0] + timedelta(days=1)
+
+        self._cancel_scheduled_refresh = async_track_point_in_time(
+            self.hass, self._async_scheduled_refresh, dt_util.as_utc(next_refresh)
+        )
+
+    async def _async_scheduled_refresh(self, _: datetime) -> None:
+        """Refresh data and arrange the following configured refresh."""
+        self._cancel_scheduled_refresh = None
+        self._async_schedule_next_refresh()
+        await self.async_request_refresh()
 
     async def _async_update_data(self) -> ConsumptionData:
         try:
