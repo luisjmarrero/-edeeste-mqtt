@@ -12,7 +12,7 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
-from .const import DETAIL_URL, LOGIN_URL
+from .const import DETAIL_URL, LOGIN_URL, SERVICE_STATUS_URL
 
 
 class EdeesteApiError(Exception):
@@ -38,6 +38,15 @@ class ConsumptionData:
     message: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class ServiceStatusData:
+    """Circuit/service incident status returned by GetEstadoCircuito."""
+
+    nic: str | None
+    sin_incidencia: bool
+    message: str | None
+
+
 class EdeesteApiClient:
     """Fetch consumption data using a fresh authenticated EDEEste session."""
 
@@ -58,21 +67,52 @@ class EdeesteApiClient:
             await self._async_login()
             return await self._async_fetch_consumption()
 
+    async def async_get_service_status(self, nic: str) -> ServiceStatusData:
+        """Return the circuit/service incident status for the given NIC."""
+        if not self._authenticated:
+            await self._async_login()
+        try:
+            return await self._async_fetch_service_status(nic)
+        except EdeesteAuthenticationError:
+            self._authenticated = False
+            await self._async_login()
+            return await self._async_fetch_service_status(nic)
+
     async def _async_fetch_consumption(self) -> ConsumptionData:
         """Retrieve details, raising an auth error for an expired session."""
+        payload = await self._async_authenticated_request("GET", DETAIL_URL)
+        return parse_consumption_payload(payload)
+
+    async def _async_fetch_service_status(self, nic: str) -> ServiceStatusData:
+        """Retrieve circuit status, raising an auth error for an expired session."""
+        payload = await self._async_authenticated_request(
+            "POST", SERVICE_STATUS_URL, json_body={"nic": nic}
+        )
+        return parse_service_status_payload(payload)
+
+    async def _async_authenticated_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+    ) -> Any:
+        """Perform a request on the authenticated session and return its JSON body."""
         headers = {
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/json; charset=utf-8",
             "X-Requested-With": "XMLHttpRequest",
         }
         try:
-            async with self._session.get(DETAIL_URL, headers=headers) as response:
+            async with self._session.request(
+                method, url, headers=headers, json=json_body
+            ) as response:
                 if response.status in (401, 403):
                     raise EdeesteAuthenticationError("EDEEste rejected the authenticated session")
                 response.raise_for_status()
                 if "Login.aspx" in str(response.url):
                     raise EdeesteAuthenticationError("EDEEste session has expired")
-                payload: Any = await response.json(content_type=None)
+                return await response.json(content_type=None)
         except aiohttp.ClientResponseError as err:
             raise EdeesteApiError(f"EDEEste returned HTTP {err.status}") from err
         except aiohttp.ClientError as err:
@@ -81,8 +121,6 @@ class EdeesteApiClient:
             raise EdeesteAuthenticationError(
                 "EDEEste returned a non-JSON response; the session may have expired"
             ) from err
-
-        return parse_consumption_payload(payload)
 
     async def _async_login(self) -> None:
         """Create a session by submitting the ASP.NET login form."""
@@ -130,6 +168,30 @@ def parse_consumption_payload(payload: Any) -> ConsumptionData:
         last_reading_date=_as_string(item.get("FechaUltimaLectura")),
         previous_bill_date=_as_string(item.get("FechaFacturaMesAnterior")),
         message=_as_string(item.get("MensajeConsumo") or item.get("Msj")),
+    )
+
+
+def parse_service_status_payload(payload: Any) -> ServiceStatusData:
+    """Validate and normalize the GetEstadoCircuito JSON response."""
+    result = payload.get("d") if isinstance(payload, dict) else None
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError as err:
+            raise EdeesteApiError("EDEEste returned an invalid service status payload") from err
+    if not isinstance(result, dict):
+        raise EdeesteApiError("EDEEste returned no service status data")
+
+    if result.get("Error"):
+        raise EdeesteApiError(
+            _as_string(result.get("Mensaje"))
+            or "EDEEste reported an error checking the circuit status"
+        )
+
+    return ServiceStatusData(
+        nic=_as_string(result.get("Nic")),
+        sin_incidencia=bool(result.get("SinIncidencia", False)),
+        message=_as_string(result.get("Mensaje")),
     )
 
 

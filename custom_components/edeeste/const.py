@@ -15,6 +15,7 @@ DEFAULT_UPDATE_TIMES = "10:00"
 UPDATE_TIME_ZONE = "America/Santo_Domingo"
 DETAIL_URL = "https://oficinavirtual.edeeste.com.do/Default.aspx/GetDetalle"
 LOGIN_URL = "https://oficinavirtual.edeeste.com.do/Login.aspx?ReturnUrl=%2F"
+SERVICE_STATUS_URL = "https://oficinavirtual.edeeste.com.do/EstadoCircuito.aspx/GetEstadoCircuito"
 
 ATTRIBUTION = "Data provided by EDEEste Oficina Virtual"
 
