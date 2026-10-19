@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import getpass
 import json
+import ssl
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
+from pathlib import Path
 
 
 LOGIN_URL = "https://oficinavirtual.edeeste.com.do/Login.aspx?ReturnUrl=%2F"
@@ -44,7 +46,24 @@ def main() -> int:
         print("Email, password and NIC are required.", file=sys.stderr)
         return 2
 
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+    ssl_context = ssl.create_default_context()
+    ssl_context.load_verify_locations(
+        cafile=str(
+            Path(__file__).resolve().parent.parent
+            / "custom_components/edeeste/godaddy_g2_intermediate.pem"
+        )
+    )
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(),
+        urllib.request.HTTPSHandler(context=ssl_context),
+    )
+    opener.addheaders = [
+        (
+            "User-Agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+        )
+    ]
     try:
         with opener.open(LOGIN_URL, timeout=30) as response:
             parser = HiddenInputParser()

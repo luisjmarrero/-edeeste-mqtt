@@ -12,7 +12,14 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
-from .const import DETAIL_URL, LOGIN_URL, SERVICE_STATUS_URL
+from .const import DETAIL_URL, LOGIN_URL, SERVICE_STATUS_URL, USER_AGENT
+from .ssl_context import async_get_ssl_context
+
+
+_CERT_ERROR = (
+    "TLS certificate verification failed for EDEEste "
+    "(certificate chain incomplete or untrusted)"
+)
 
 
 class EdeesteApiError(Exception):
@@ -51,6 +58,7 @@ class EdeesteApiClient:
     """Fetch consumption data using a fresh authenticated EDEEste session."""
 
     def __init__(self, hass: HomeAssistant, email: str, password: str) -> None:
+        self._hass = hass
         self._session = async_create_clientsession(hass)
         self._email = email
         self._password = password
@@ -99,13 +107,15 @@ class EdeesteApiClient:
     ) -> Any:
         """Perform a request on the authenticated session and return its JSON body."""
         headers = {
+            "User-Agent": USER_AGENT,
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/json; charset=utf-8",
             "X-Requested-With": "XMLHttpRequest",
         }
+        ssl_context = await async_get_ssl_context(self._hass)
         try:
             async with self._session.request(
-                method, url, headers=headers, json=json_body
+                method, url, headers=headers, json=json_body, ssl=ssl_context
             ) as response:
                 if response.status in (401, 403):
                     raise EdeesteAuthenticationError("EDEEste rejected the authenticated session")
@@ -115,6 +125,8 @@ class EdeesteApiClient:
                 return await response.json(content_type=None)
         except aiohttp.ClientResponseError as err:
             raise EdeesteApiError(f"EDEEste returned HTTP {err.status}") from err
+        except aiohttp.ClientConnectorCertificateError as err:
+            raise EdeesteApiError(_CERT_ERROR) from err
         except aiohttp.ClientError as err:
             raise EdeesteApiError("Unable to reach EDEEste") from err
         except (TypeError, ValueError, json.JSONDecodeError) as err:
@@ -124,8 +136,11 @@ class EdeesteApiClient:
 
     async def _async_login(self) -> None:
         """Create a session by submitting the ASP.NET login form."""
+        ssl_context = await async_get_ssl_context(self._hass)
         try:
-            async with self._session.get(LOGIN_URL) as response:
+            async with self._session.get(
+                LOGIN_URL, ssl=ssl_context, headers={"User-Agent": USER_AGENT}
+            ) as response:
                 response.raise_for_status()
                 form = _extract_hidden_inputs(await response.text())
             form.update(
@@ -135,12 +150,19 @@ class EdeesteApiClient:
                     "ctl00$ContentPlaceHolder1$ucLogin$BtnLogin": "Iniciar sesión",
                 }
             )
-            async with self._session.post(LOGIN_URL, data=form) as response:
+            async with self._session.post(
+                LOGIN_URL,
+                data=form,
+                ssl=ssl_context,
+                headers={"User-Agent": USER_AGENT},
+            ) as response:
                 response.raise_for_status()
                 if "Login.aspx" in str(response.url):
                     raise EdeesteAuthenticationError("EDEEste rejected the email or password")
         except EdeesteAuthenticationError:
             raise
+        except aiohttp.ClientConnectorCertificateError as err:
+            raise EdeesteApiError(_CERT_ERROR) from err
         except aiohttp.ClientError as err:
             raise EdeesteApiError("Unable to reach EDEEste") from err
         self._authenticated = True

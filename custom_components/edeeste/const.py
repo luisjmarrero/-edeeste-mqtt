@@ -42,3 +42,9 @@ def parse_update_times(value: str) -> tuple[time, ...]:
 def normalize_update_times(value: str) -> str:
     """Return update times in their canonical, comma-separated form."""
     return ", ".join(item.strftime("%H:%M") for item in parse_update_times(value))
+
+# EDEEste's Oficina Virtual answers HTTP 403 to Python's default User-Agent.
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+)
